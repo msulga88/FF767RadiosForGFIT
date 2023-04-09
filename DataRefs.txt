@@ -1,0 +1,5 @@
+1-sim/radios/nav3_frequency_hz
+msulga/radios/FFB767vhf1LeftFreq
+msulga/radios/FFB767vhf1RightFreq
+msulga/radios/FFB767vhf2LeftFreq
+msulga/radios/FFB767vhf2RightFreq
