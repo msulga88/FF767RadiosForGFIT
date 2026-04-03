@@ -57,6 +57,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <sstream>
 
 // com1
 XPLMDataRef vhf1LeftFreq = NULL;
@@ -81,6 +82,14 @@ float PluginDependencyCallback
 );
 
 static float VHFRadioCallback
+(
+    float inElapsedSinceLastCall,
+    float inElapsedTimeSinceLastFlightLoop,
+    int inCounter,
+    void* inRefcon
+);
+
+static float InitialiseComFreqsCallback
 (
     float inElapsedSinceLastCall,
     float inElapsedTimeSinceLastFlightLoop,
@@ -169,16 +178,16 @@ PLUGIN_API int XPluginStart(
     //com 1
     vhf1LeftFreq = XPLMFindDataRef("msulga/radios/FFB767vhf1LeftFreq");
     vhf1RightFreq = XPLMFindDataRef("msulga/radios/FFB767vhf1RightFreq");
-    com1StdbyFreqHz = XPLMFindDataRef("sim/cockpit/radios/com1_stdby_freq_hz");
-    com1FreqHz = XPLMFindDataRef("sim/cockpit/radios/com1_freq_hz"); 
+    com1StdbyFreqHz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com1_standby_frequency_hz_833");
+    com1FreqHz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com1_frequency_hz_833"); 
     //com1ActiveSide = XPLMFindDataRef("1-sim/vhf/1/active");
     //com1ActiveSide = XPLMFindDataRef("sim/cockpit/electrical/taxi_light_on"); // uncomment for testing when FF767 not installed
 
     //com 2
     vhf2LeftFreq = XPLMFindDataRef("msulga/radios/FFB767vhf2LeftFreq");
     vhf2RightFreq = XPLMFindDataRef("msulga/radios/FFB767vhf2RightFreq");
-    com2StdbyFreqHz = XPLMFindDataRef("sim/cockpit/radios/com2_stdby_freq_hz");
-    com2FreqHz = XPLMFindDataRef("sim/cockpit/radios/com2_freq_hz");
+    com2StdbyFreqHz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_standby_frequency_hz_833");
+    com2FreqHz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_frequency_hz_833");
     //com2ActiveSide = XPLMFindDataRef("1-sim/vhf/2/active");
     //com2ActiveSide = XPLMFindDataRef("sim/cockpit/electrical/taxi_light_on"); // uncomment for testing when FF767 not installed
 
@@ -210,6 +219,10 @@ PLUGIN_API void     XPluginStop(void)
     XPLMUnregisterDataAccessor(vhf2RightFreq);
 
     XPLMUnregisterFlightLoopCallback(
+        InitialiseComFreqsCallback,
+        NULL);
+
+    XPLMUnregisterFlightLoopCallback(
         VHFRadioCallback,
         NULL);
 
@@ -231,6 +244,111 @@ PLUGIN_API void XPluginReceiveMessage(XPLMPluginID    inFromWho,
     long             inMessage,
     void* inParam)
 {
+}
+
+float InitialiseComFreqsCallback
+(
+    float inElapsedSinceLastCall,
+    float inElapsedTimeSinceLastFlightLoop,
+    int inCounter,
+    void* inRefcon
+)
+{
+    com1ActiveSide = XPLMFindDataRef("1-sim/vhf/1/active");
+    com2ActiveSide = XPLMFindDataRef("1-sim/vhf/2/active");
+
+    // COM1 Frequency Initialisation
+
+    bool com1LeftIsActive = XPLMGetDatai(com1ActiveSide) == 0;
+
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com1 Active freq = " << XPLMGetDatai(com1FreqHz) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com1 Sby freq = " << XPLMGetDatai(com1StdbyFreqHz) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: com1LeftIsActive = " << (com1LeftIsActive ? "TRUE" : "FALSE") << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+
+    if (com1LeftIsActive)
+    {
+        XPLMSetDatai(vhf1LeftFreq, XPLMGetDatai(com1FreqHz));
+        XPLMSetDatai(vhf1RightFreq, XPLMGetDatai(com1StdbyFreqHz));
+    }
+    else
+    {
+        XPLMSetDatai(vhf1LeftFreq, XPLMGetDatai(com1StdbyFreqHz));
+        XPLMSetDatai(vhf1RightFreq, XPLMGetDatai(com1FreqHz));
+    }
+
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com1 Left freq = " << XPLMGetDatai(vhf1LeftFreq) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com1 Right freq = " << XPLMGetDatai(vhf1RightFreq) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+
+    // COM2 Frequency Initialisation
+
+    bool com2LeftIsActive = XPLMGetDatai(com2ActiveSide) == 0;
+
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com2 Active freq = " << XPLMGetDatai(com2FreqHz) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com2 Sby freq = " << XPLMGetDatai(com2StdbyFreqHz) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: com2LeftIsActive = " << (com2LeftIsActive ? "TRUE" : "FALSE") << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+
+    if (com2LeftIsActive)
+    {
+        XPLMSetDatai(vhf2LeftFreq, XPLMGetDatai(com2FreqHz));
+        XPLMSetDatai(vhf2RightFreq, XPLMGetDatai(com2StdbyFreqHz));
+    }
+    else
+    {
+        XPLMSetDatai(vhf2LeftFreq, XPLMGetDatai(com2StdbyFreqHz));
+        XPLMSetDatai(vhf2RightFreq, XPLMGetDatai(com2FreqHz));
+    }
+
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com2 Left freq = " << XPLMGetDatai(vhf2LeftFreq) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+    {
+        std::stringstream ss;
+        ss << "FF767RadiosForGFIT: Com2 Right freq = " << XPLMGetDatai(vhf2RightFreq) << "\n";
+        XPLMDebugString(ss.str().c_str());
+    }
+
+    XPLMDebugString("FF767RadiosForGFIT: registering VHFRadioCallback\n");
+
+    XPLMRegisterFlightLoopCallback(
+        VHFRadioCallback, // Callback
+        -1,
+        NULL);
+
+    return 0.0;
 }
 
 float VHFRadioCallback
@@ -413,14 +531,12 @@ float PluginDependencyCallback
         XPLMDebugString("FF767RadiosForGFIT: ru.stsff.757767avionics plugin found\n");
         if (XPLMIsPluginEnabled(boeing767ID) != 0)
         {
-            XPLMDebugString("FF767RadiosForGFIT: ru.stsff.757767avionics plugin enabled - registering VHFRadioCallback\n");
+            XPLMDebugString("FF767RadiosForGFIT: ru.stsff.757767avionics plugin enabled - registering VHFFirstRadioCallback\n");
             XPLMRegisterFlightLoopCallback(
-                VHFRadioCallback, // Callback
+                InitialiseComFreqsCallback, // Callback
                 2.0, // 2 sec delay to next callback to allow ru.stsff.757767avionics plugin to setup
                 NULL);
 
-            com1ActiveSide = XPLMFindDataRef("1-sim/vhf/1/active");
-            com2ActiveSide = XPLMFindDataRef("1-sim/vhf/2/active");
 
             return 0;
         }
